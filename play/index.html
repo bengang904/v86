@@ -17,7 +17,7 @@
 (()=>{
  const original=new URL(location.href), raw=original.searchParams.get('game');
  const fileMode=original.searchParams.get('file')==='1';
- const isWgb=!!raw&&/\.wgb(?:$|[?#])/i.test(raw);
+ const isWgb=!!raw&&/\.(?:wgb|zip)(?:$|[?#])/i.test(raw);
  const shouldPicker=fileMode||!raw||isWgb;
  if(!shouldPicker&&raw!=='dev')return;
  let target=null;
@@ -30,9 +30,9 @@
   const panel=document.createElement('div');Object.assign(panel.style,{width:'min(460px,100%)',border:'1px solid #444',padding:'24px',boxSizing:'border-box'});
   const title=document.createElement('h2');title.textContent='WGB Player';Object.assign(title.style,{margin:'0 0 12px',fontSize:'22px'});
   const info=document.createElement('p');info.textContent=message;Object.assign(info.style,{lineHeight:'1.5',overflowWrap:'anywhere',color:'#bbb'});
-  const input=document.createElement('input');input.type='file';input.accept='.wgb,application/octet-stream';input.style.display='block';input.style.margin='20px 0';input.style.maxWidth='100%';
-  const status=document.createElement('p');status.textContent='Select a .wgb file. The file is loaded in memory only and is not permanently saved.';status.style.color='#aaa';
-  input.addEventListener('change',async()=>{const file=input.files&&input.files[0];if(!file)return;if(!file.name.toLowerCase().endsWith('.wgb')){status.textContent='Please select a .wgb file.';input.value='';return;}input.disabled=true;status.textContent='Loading file into the virtual filesystem…';try{
+  const input=document.createElement('input');input.type='file';input.accept='.zip,.wgb,application/zip,application/octet-stream';input.style.display='block';input.style.margin='20px 0';input.style.maxWidth='100%';
+  const status=document.createElement('p');status.textContent='选择一个 WGB 游戏包。该文件仅加载至内存中，不会被永久保存。';status.style.color='#aaa';
+  input.addEventListener('change',async()=>{const file=input.files&&input.files[0];if(!file)return;if(!/\.(?:wgb|zip)$/i.test(file.name)){status.textContent='Please select a .zip or .wgb file.';input.value='';return;}input.disabled=true;status.textContent='Loading file into the virtual filesystem…';try{
    const deadline=Date.now()+120000;while(typeof window.__bsLoadLocalFile!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
    if(typeof window.__bsLoadLocalFile!=='function')throw Error('Player worker did not become ready. Reload the page and try again.');
    try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{}
@@ -45,12 +45,12 @@
  }
  async function exists(url){try{let r=await fetch(url,{method:'HEAD',cache:'no-store'});if(r.ok)return true;if(r.status!==405&&r.status!==501)return false}catch{}try{const r=await fetch(url,{headers:{Range:'bytes=0-0'},cache:'no-store'});return r.ok||r.status===206}catch{return false}}
  async function init(){let target='';try{target=sessionStorage.getItem('wgb_pending_target')||''}catch{}let needPicker=false;try{needPicker=sessionStorage.getItem('wgb_picker_needed')==='1'}catch{}
-  if(needPicker){picker('No accessible game resource was specified. Choose a local WGB file.');return}
+  if(needPicker){picker('未指定可访问的游戏资源。请选择一个本地 WGB 文件。');return}
   if(!target)return;
-  if(!(await exists(target))){picker('The specified game resource could not be found or accessed: '+target+' Choose a local WGB file instead.');return}
+  if(!(await exists(target))){picker('The specified game resource could not be found or accessed: '+target+' Choose a local ZIP or WGB file instead.');return}
   const deadline=Date.now()+120000;while(typeof window.loadApp!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
-  if(typeof window.loadApp!=='function'){picker('The player could not initialize. Choose a local WGB file.');return}
-  try{await window.loadApp(target,{preload:false});try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{};history.replaceState(null,'',original.pathname+original.search+original.hash)}catch(e){history.replaceState(null,'',original.pathname+original.search+original.hash);picker('Could not load the specified game: '+(e&&e.message||e)+'. Choose a local WGB file instead.')}
+  if(typeof window.loadApp!=='function'){picker('The player could not initialize. Choose a local ZIP or WGB file.');return}
+  try{await window.loadApp(target,{preload:false});try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{};history.replaceState(null,'',original.pathname+original.search+original.hash)}catch(e){history.replaceState(null,'',original.pathname+original.search+original.hash);picker('Could not load the specified game: '+(e&&e.message||e)+'. Choose a local ZIP or WGB file instead.')}
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0),{once:true});else setTimeout(init,0);
 })();
