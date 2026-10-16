@@ -19,11 +19,37 @@
  const fileMode=original.searchParams.get('file')==='1';
  const isWgb=!!raw&&/\.(?:wgb|zip)(?:$|[?#])/i.test(raw);
  const shouldPicker=fileMode||!raw||isWgb;
+ // game=dev is required for the SPA to mount the local-file player shell.
  if(!shouldPicker&&raw!=='dev')return;
  let target=null;
  if(isWgb){try{target=new URL(raw,location.href).href}catch{}}
  try{sessionStorage.setItem('wgb_pending_target',target||'');sessionStorage.setItem('wgb_picker_needed',shouldPicker&&!target?'1':'0')}catch{}
- const q=new URLSearchParams(original.search);q.set('game','dev');q.delete('ingest');q.delete('file');history.replaceState(null,'',original.pathname+'?'+q.toString()+original.hash);
+ // Boot with game=dev so the player shell initializes…
+ const q=new URLSearchParams(original.search);q.set('game','dev');q.delete('ingest');q.delete('file');
+ history.replaceState(null,'',original.pathname+'?'+q.toString()+original.hash);
+ // …then strip game=dev from the visible URL (including on refresh of ?game=dev).
+ function cleanUrl(){
+  try{
+   const u=new URL(location.href);
+   if(u.searchParams.get('game')!=='dev'&&!u.searchParams.has('ingest'))return;
+   u.searchParams.delete('game');
+   u.searchParams.delete('ingest');
+   // keep file=1 only while a local pick is in progress; drop it for a clean /play/
+   if(u.searchParams.get('file')==='1')u.searchParams.delete('file');
+   const qs=u.searchParams.toString();
+   history.replaceState(null,'',u.pathname+(qs?'?'+qs:'')+u.hash);
+  }catch{}
+ }
+ function whenPlayerReady(cb){
+  const deadline=Date.now()+120000;
+  (function tick(){
+   if(typeof window.loadApp==='function'||typeof window.__bsLoadLocalFile==='function'){cb();return;}
+   if(Date.now()>deadline){cb();return;}
+   setTimeout(tick,50);
+  })();
+ }
+ // Clean the address bar as soon as the player shell is up (covers refresh of /play/?game=dev).
+ whenPlayerReady(cleanUrl);
  function picker(message){
   if(document.getElementById('wgb-picker'))return;
   const wrap=document.createElement('div');wrap.id='wgb-picker';Object.assign(wrap.style,{position:'fixed',inset:'0',zIndex:'2147483647',background:'#0e0f0f',color:'#eee',display:'grid',placeItems:'center',fontFamily:'system-ui,sans-serif',padding:'24px',boxSizing:'border-box'});
@@ -32,14 +58,17 @@
   const info=document.createElement('p');info.textContent=message;Object.assign(info.style,{lineHeight:'1.5',overflowWrap:'anywhere',color:'#bbb'});
   const input=document.createElement('input');input.type='file';input.accept='.zip,.wgb,application/zip,application/octet-stream';input.style.display='block';input.style.margin='20px 0';input.style.maxWidth='100%';
   const status=document.createElement('p');status.textContent='选择一个 WGB 游戏包。该文件仅加载至内存中，不会被永久保存。';status.style.color='#aaa';
-  input.addEventListener('change',async()=>{const file=input.files&&input.files[0];if(!file)return;if(!/\.(?:wgb|zip)$/i.test(file.name)){status.textContent='Please select a .zip or .wgb file.';input.value='';return;}input.disabled=true;status.textContent='Loading file into the virtual filesystem…';try{
-   const deadline=Date.now()+120000;while(typeof window.__bsLoadLocalFile!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
-   if(typeof window.__bsLoadLocalFile!=='function')throw Error('Player worker did not become ready. Reload the page and try again.');
-   try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{}
-   history.replaceState(null,'',location.pathname+'?file=1'+location.hash);
-   await window.__bsLoadLocalFile(file);
-   wrap.remove();
-  }catch(e){status.textContent='Could not load file: '+(e&&e.message||e);input.disabled=false;}
+  input.addEventListener('change',async()=>{
+   const file=input.files&&input.files[0];if(!file)return;
+   input.disabled=true;status.textContent='正在加载，请稍候…';
+   try{
+    const deadline=Date.now()+120000;while(typeof window.__bsLoadLocalFile!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
+    if(typeof window.__bsLoadLocalFile!=='function')throw Error('Player worker did not become ready. Reload the page and try again.');
+    try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{}
+    await window.__bsLoadLocalFile(file);
+    wrap.remove();
+    cleanUrl();
+   }catch(e){status.textContent='Could not load file: '+(e&&e.message||e);input.disabled=false;}
   });
   panel.append(title,info,input,status);wrap.append(panel);document.body.append(wrap);
  }
@@ -50,7 +79,7 @@
   if(!(await exists(target))){picker('The specified game resource could not be found or accessed: '+target+' Choose a local ZIP or WGB file instead.');return}
   const deadline=Date.now()+120000;while(typeof window.loadApp!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
   if(typeof window.loadApp!=='function'){picker('The player could not initialize. Choose a local ZIP or WGB file.');return}
-  try{await window.loadApp(target,{preload:false});try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{};history.replaceState(null,'',original.pathname+original.search+original.hash)}catch(e){history.replaceState(null,'',original.pathname+original.search+original.hash);picker('Could not load the specified game: '+(e&&e.message||e)+'. Choose a local ZIP or WGB file instead.')}
+  try{await window.loadApp(target,{preload:false});try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{};cleanUrl()}catch(e){cleanUrl();picker('Could not load the specified game: '+(e&&e.message||e)+'. Choose a local ZIP or WGB file instead.')}
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0),{once:true});else setTimeout(init,0);
 })();
