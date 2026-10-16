@@ -1,0 +1,14 @@
+@font-face{font-family:D2IO;src:url('/ui/d2io-open-sans.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+:root{color-scheme:dark;font-family:D2IO,'Open Sans',sans-serif;font-size:15px;color:#ebddc6;background:#0e0f0f url('/ui/d2io-bgtile_bl2x.webp') center/590px repeat}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px}
+.menu{width:248px;max-width:100%;text-align:center}
+h1{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 26px;font-size:24px;font-weight:500;color:#ebddc6}
+h1 img{display:block;flex:0 0 auto}
+nav{display:flex;gap:8px;justify-content:center}
+.menu-button{display:inline-flex;align-items:center;justify-content:center;flex:1;min-height:44px;padding:0 18px;border:1px solid #000;border-radius:0;background:#433833 url('/ui/d2io-button22x.webp') 0 0/119px 88px repeat-x;box-shadow:0 4px 0 -1px #191310,0 4px 0 #000;color:#ebddc6;font:inherit;text-decoration:none;text-shadow:0 1px #000}
+.menu-button:hover{filter:brightness(1.4)}
+.menu-button:active{background-position:0 -44px;color:#fff}
+.menu-button:focus-visible{outline:1px solid #d3ba87;outline-offset:4px}
+#compatibility{margin:22px 0 0;font-size:12px;line-height:1.6;color:#d3ba87}
+[hidden]{display:none!important}

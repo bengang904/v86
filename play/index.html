@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script src="/coi-serviceworker.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0e0f0f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="WGB Player" />
+<title>WGB Player</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="stylesheet" href="/assets/index-BRK5hhdv.css" />
+<link rel="stylesheet" href="/player-theme.css" />
+<script>
+(()=>{
+ const original=new URL(location.href), raw=original.searchParams.get('game');
+ const fileMode=original.searchParams.get('file')==='1';
+ const isWgb=!!raw&&/\.wgb(?:$|[?#])/i.test(raw);
+ const shouldPicker=fileMode||!raw||isWgb;
+ if(!shouldPicker&&raw!=='dev')return;
+ let target=null;
+ if(isWgb){try{target=new URL(raw,location.href).href}catch{}}
+ try{sessionStorage.setItem('wgb_pending_target',target||'');sessionStorage.setItem('wgb_picker_needed',shouldPicker&&!target?'1':'0')}catch{}
+ const q=new URLSearchParams(original.search);q.set('game','dev');q.delete('ingest');q.delete('file');history.replaceState(null,'',original.pathname+'?'+q.toString()+original.hash);
+ function picker(message){
+  if(document.getElementById('wgb-picker'))return;
+  const wrap=document.createElement('div');wrap.id='wgb-picker';Object.assign(wrap.style,{position:'fixed',inset:'0',zIndex:'2147483647',background:'#0e0f0f',color:'#eee',display:'grid',placeItems:'center',fontFamily:'system-ui,sans-serif',padding:'24px',boxSizing:'border-box'});
+  const panel=document.createElement('div');Object.assign(panel.style,{width:'min(460px,100%)',border:'1px solid #444',padding:'24px',boxSizing:'border-box'});
+  const title=document.createElement('h2');title.textContent='WGB Player';Object.assign(title.style,{margin:'0 0 12px',fontSize:'22px'});
+  const info=document.createElement('p');info.textContent=message;Object.assign(info.style,{lineHeight:'1.5',overflowWrap:'anywhere',color:'#bbb'});
+  const input=document.createElement('input');input.type='file';input.accept='.wgb,application/octet-stream';input.style.display='block';input.style.margin='20px 0';input.style.maxWidth='100%';
+  const status=document.createElement('p');status.textContent='Select a .wgb file. The file is loaded in memory only and is not permanently saved.';status.style.color='#aaa';
+  input.addEventListener('change',async()=>{const file=input.files&&input.files[0];if(!file)return;if(!file.name.toLowerCase().endsWith('.wgb')){status.textContent='Please select a .wgb file.';input.value='';return;}input.disabled=true;status.textContent='Loading file into the virtual filesystem…';try{
+   const deadline=Date.now()+120000;while(typeof window.__bsLoadLocalFile!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
+   if(typeof window.__bsLoadLocalFile!=='function')throw Error('Player worker did not become ready. Reload the page and try again.');
+   try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{}
+   history.replaceState(null,'',location.pathname+'?file=1'+location.hash);
+   await window.__bsLoadLocalFile(file);
+   wrap.remove();
+  }catch(e){status.textContent='Could not load file: '+(e&&e.message||e);input.disabled=false;}
+  });
+  panel.append(title,info,input,status);wrap.append(panel);document.body.append(wrap);
+ }
+ async function exists(url){try{let r=await fetch(url,{method:'HEAD',cache:'no-store'});if(r.ok)return true;if(r.status!==405&&r.status!==501)return false}catch{}try{const r=await fetch(url,{headers:{Range:'bytes=0-0'},cache:'no-store'});return r.ok||r.status===206}catch{return false}}
+ async function init(){let target='';try{target=sessionStorage.getItem('wgb_pending_target')||''}catch{}let needPicker=false;try{needPicker=sessionStorage.getItem('wgb_picker_needed')==='1'}catch{}
+  if(needPicker){picker('No accessible game resource was specified. Choose a local WGB file.');return}
+  if(!target)return;
+  if(!(await exists(target))){picker('The specified game resource could not be found or accessed: '+target+' Choose a local WGB file instead.');return}
+  const deadline=Date.now()+120000;while(typeof window.loadApp!=='function'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,100));
+  if(typeof window.loadApp!=='function'){picker('The player could not initialize. Choose a local WGB file.');return}
+  try{await window.loadApp(target,{preload:false});try{sessionStorage.removeItem('wgb_pending_target');sessionStorage.removeItem('wgb_picker_needed')}catch{};history.replaceState(null,'',original.pathname+original.search+original.hash)}catch(e){history.replaceState(null,'',original.pathname+original.search+original.hash);picker('Could not load the specified game: '+(e&&e.message||e)+'. Choose a local WGB file instead.')}
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0),{once:true});else setTimeout(init,0);
+})();
+</script>
+<style>
+.d2-toolbar{display:none!important}
+</style>
+<script type="module" crossorigin src="/assets/index-95b7e95903ae9f73.js"></script>
+</head>
+<body><div id="root"></div></body>
+</html>

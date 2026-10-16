@@ -1,0 +1,16 @@
+[
+  {
+    "id": "diablo2",
+    "name": "Diablo II",
+    "subtitle": "",
+    "wgbUrl": "/apps/d2_lod.d44333f2d8255b109cea.wgb",
+    "coverUrl": "/d2-preview.png",
+    "year": "2001",
+    "genre": "Action RPG",
+    "description": "",
+    "enabled": true,
+    "io": {
+      "mode": "stream"
+    }
+  }
+]
